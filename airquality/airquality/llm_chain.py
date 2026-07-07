@@ -1,15 +1,7 @@
-import transformers
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, AutoConfig, AutoModel
-from langchain.llms import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
-from langchain.chains.llm import LLMChain
-from langchain.memory import ConversationBufferWindowMemory
-import torch
 import datetime
 from typing import Any, Dict, Union
-from functions.context_engineering import get_context_data
+from airquality.context_engineering import get_context_data
 import os
-from safetensors.torch import load_model, save_model
 
 def load_model(model_id: str = "teknium/OpenHermes-2.5-Mistral-7B") -> tuple:
     """
@@ -21,6 +13,8 @@ def load_model(model_id: str = "teknium/OpenHermes-2.5-Mistral-7B") -> tuple:
     Returns:
         tuple: A tuple containing the loaded model and tokenizer.
     """
+    import torch
+    from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
     # Load the tokenizer for Mistral-7B-Instruct model
     tokenizer_path = "./mistral/tokenizer"
@@ -108,6 +102,11 @@ def get_llm_chain(model_llm, tokenizer):
     Returns:
         LLMChain: The configured language model chain.
     """
+    import transformers
+    from langchain.llms import HuggingFacePipeline
+    from langchain.prompts import PromptTemplate
+    from langchain.chains.llm import LLMChain
+
     # Create a text generation pipeline using the loaded model and tokenizer
     text_generation_pipeline = transformers.pipeline(
         model=model_llm,                      # The pre-trained language model for text generation
@@ -204,6 +203,8 @@ def generate_response_openai(
     weather_fg,
     model_air_quality,
     client,
+
+    model="gpt-4-0125-preview",
     verbose=True,
 ):
 
@@ -231,7 +232,7 @@ def generate_response_openai(
     )
 
     completion = client.chat.completions.create(
-        model="gpt-4-0125-preview",
+        model=model,
         messages=[
             {"role": "system", "content": instructions_filled},
             {"role": "user", "content": user_query},
@@ -244,3 +245,30 @@ def generate_response_openai(
         if last_choice.message:
             return last_choice.message.content.strip()
     return ""
+
+
+def get_ollama_client(base_url="http://localhost:11434/v1", model="qwen3:4b"):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key="ollama")
+    return client, model
+
+
+def generate_response_ollama(
+    user_query: str,
+    feature_view,
+    weather_fg,
+    model_air_quality,
+    model="qwen3:4b",
+    base_url="http://localhost:11434/v1",
+    verbose=True,
+):
+    client, model = get_ollama_client(base_url=base_url, model=model)
+    return generate_response_openai(
+        user_query,
+        feature_view,
+        weather_fg,
+        model_air_quality,
+        client=client,
+        model=model,
+        verbose=verbose,
+    )
