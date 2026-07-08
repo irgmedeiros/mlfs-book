@@ -1198,6 +1198,13 @@ def generate_credit_card_transactions_with_location_continuity(
 # Feature group helper - add account_id description
 # ---------------------------
 
+DISABLED_STATISTICS_CONFIG = {
+    "enabled": False,
+    "histograms": False,
+    "correlations": False,
+}
+
+
 def get_or_create_feature_group_with_descriptions(fs, df, name, description, primary_key, event_time_col=None, topic_name=None, online_enabled=True, features=None, time_travel_format="DELTA", ttl_enabled=False):
     """Create feature group and add feature descriptions"""
     print(f"Creating feature group: {name}")
@@ -1219,6 +1226,7 @@ def get_or_create_feature_group_with_descriptions(fs, df, name, description, pri
                 topic_name=topic_name,
                 online_enabled=online_enabled,
                 time_travel_format=time_travel_format,
+                statistics_config=DISABLED_STATISTICS_CONFIG,
                 ttl_enabled=ttl_enabled,
                 ttl=1800
             )
@@ -1232,6 +1240,7 @@ def get_or_create_feature_group_with_descriptions(fs, df, name, description, pri
                 topic_name=topic_name,
                 online_enabled=online_enabled,
                 time_travel_format=time_travel_format,
+                statistics_config=DISABLED_STATISTICS_CONFIG,
                 features=features,
                 ttl_enabled=ttl_enabled,
                 ttl=1800

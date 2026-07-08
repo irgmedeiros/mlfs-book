@@ -12,10 +12,13 @@ class Predict(object):
         # Get feature store handle
         project = hopsworks.login()
         self.mr = project.get_model_registry()
+        self.fs = project.get_feature_store()
 
         # Retrieve the feature view from the model
         retrieved_model = self.mr.get_best_model(name="cc_fraud_xgboost_model", metric="f1_score", direction="max")
         self.feature_view = retrieved_model.get_feature_view()
+        if self.feature_view is None:
+            self.feature_view = self.fs.get_feature_view("cc_fraud_fv", version=1)
         self.feature_view.init_feature_logger(async_logger)
 
         # Load the unified pipeline (preprocessor + XGBoost model)

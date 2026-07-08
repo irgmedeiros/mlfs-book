@@ -50,6 +50,12 @@ name = "cc_trans_aggs_fg"
 kafka_topic = f"{project.name}_onlinefs"
 aggs_topic = f"{project.name}_{name}_onlinefs"
 
+DISABLED_STATISTICS_CONFIG = {
+    "enabled": False,
+    "histograms": False,
+    "correlations": False,
+}
+
 cc_trans_fg = fs.get_feature_group(name="credit_card_transactions", version=1)
 card_details_fg = fs.get_feature_group(name="card_details", version=1)
 
@@ -81,6 +87,7 @@ windowed_fg = fs.get_or_create_feature_group(
         Feature("prev_ts", type="timestamp"),
         Feature("event_time", type="timestamp"),
     ],
+    statistics_config=DISABLED_STATISTICS_CONFIG,
 )
 
 try:
@@ -98,16 +105,6 @@ container_id = subprocess.check_output(
 ).strip()
 
 print(f"container_id is {container_id}")
-# Remove any existing file/symlink at /tmp/<hostname> in the container, then copy certs in
-subprocess.run([
-    "docker", "exec", container_id,
-    "bash", "-c", f"rm -rf /tmp/{hostname}"
-], check=True)
-subprocess.run([
-    "docker", "cp",
-    f"/tmp/{hostname}",
-    f"{container_id}:/tmp/"
-], check=True)
 
 # Step 1.2. Create Feldera pipeline
 # We build a Feldera pipeline to transform raw transaction and profile data into features.
@@ -271,7 +268,25 @@ def create_producer_kafka_config(kafka_config: dict, fg, project):
     }
 
 
-kafka_config = kafka_api.get_default_config()
+def inline_kafka_ssl_certs(kafka_config: dict) -> dict:
+    """Embed Kafka SSL material so Feldera does not read host-only cert paths."""
+    config = dict(kafka_config)
+    ca = config.pop("ssl.ca.location", None)
+    certificate = config.pop("ssl.certificate.location", None)
+    key = config.pop("ssl.key.location", None)
+    if ca:
+        with open(ca, "rt", encoding="utf-8") as cert_file:
+            config["ssl.ca.pem"] = cert_file.read()
+    if certificate:
+        with open(certificate, "rt", encoding="utf-8") as cert_file:
+            config["ssl.certificate.pem"] = cert_file.read()
+    if key:
+        with open(key, "rt", encoding="utf-8") as cert_file:
+            config["ssl.key.pem"] = cert_file.read()
+    return config
+
+
+kafka_config = inline_kafka_ssl_certs(kafka_api.get_default_config())
 
 fs_sink_config = json.dumps(
     {

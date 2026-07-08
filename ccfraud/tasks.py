@@ -210,19 +210,21 @@ def stream_transactions(c, transactions_per_sec=10, fraud_rate=0.005):
     run_interruptible(c, cmd)
 
 @task
-def features(c, current_date=None, wait=False):
+def features(c, current_date=None, last_processed_date=None, wait=False):
     """A batch feature pipeline to create features.
 
     Args:
         current_date: Current date in YYYY-MM-DD format (default: today's date)
+        last_processed_date: Start date in YYYY-MM-DD format (default: 30 days before current_date)
         wait: Wait for data to be synced to backend (default: False)
 
     Examples:
         inv features                              # Uses today's date
         inv features --current-date=2025-12-15   # Specific date
+        inv features --last-processed-date=2025-11-15
         inv features --wait                       # Wait for sync to complete
     """
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     check_venv()
     print("#################################################")
@@ -234,11 +236,22 @@ def features(c, current_date=None, wait=False):
 
     # Default to today's date if not provided
     if current_date is None:
-        current_date = datetime.now().strftime('%Y-%m-%d')
+        current_date_dt = datetime.now()
+        current_date = current_date_dt.strftime('%Y-%m-%d')
+    else:
+        current_date_dt = datetime.strptime(current_date, '%Y-%m-%d')
 
-    cmd = uv_run(f"python ccfraud/3-batch-feature-pipeline.py --current-date {current_date}")
+    if last_processed_date is None:
+        last_processed_date = (current_date_dt - timedelta(days=30)).strftime('%Y-%m-%d')
+
+    cmd = uv_run(
+        f"python ccfraud/3-batch-feature-pipeline.py "
+        f"--last-processed-date {last_processed_date} "
+        f"--current-date {current_date}"
+    )
     if wait:
         cmd += " --wait"
+    print(f"Last processed date: {last_processed_date}")
     print(f"Current date: {current_date}")
     print(f"Wait for sync: {wait}")
     print(f"\nRunning: {cmd}\n")

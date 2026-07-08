@@ -40,6 +40,7 @@ fi
 
 # Start action - pull latest image, then start container
 echo "Pulling latest Feldera image..."
+docker logout ghcr.io >/dev/null 2>&1 || true
 docker pull ghcr.io/feldera/pipeline-manager:latest
 
 # Check if already running; restart if image has been updated

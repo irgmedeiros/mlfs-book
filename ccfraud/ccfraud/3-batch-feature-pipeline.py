@@ -29,6 +29,7 @@ from mlfs import config
 settings = config.HopsworksSettings(_env_file=f"{root_dir}/.env")
 
 from ccfraud.features import cc_trans_fg
+from ccfraud.synth_transactions import DISABLED_STATISTICS_CONFIG
 cc_trans_fg.root_dir = str(root_dir)
 
 
@@ -100,6 +101,7 @@ def main(last_processed_date, current_date, wait=False):
             hsfs.feature.Feature("ts", type="timestamp"),
         ],
         transformation_functions=[cc_trans_fg.haversine_distance],
+        statistics_config=DISABLED_STATISTICS_CONFIG,
         parents=[trans_fg]
     )
 
@@ -112,13 +114,12 @@ def main(last_processed_date, current_date, wait=False):
 
     # Read transaction data filtered by last processed date
     print(f"Reading transactions after {last_processed_date}...")
-    #trans_df = trans_fg.filter(hsfs.feature.Feature("ts") > last_processed_date).read()
-    trans_df = trans_fg.read()
+    trans_df = trans_fg.read(start_time=last_processed_date, end_time=current_date)
     print(f"Read {len(trans_df)} transactions")
 
     # Read fraud data
     print("Reading fraud data...")
-    fraud_df = cc_fraud_fg.read()
+    fraud_df = cc_fraud_fg.read(start_time=last_processed_date, end_time=current_date)
     print(f"Read {len(fraud_df)} fraud records")
 
     # Sort by cc_num and ts
